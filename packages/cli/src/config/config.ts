@@ -1070,7 +1070,7 @@ export async function loadCliConfig(
     // recursive continuation turns inside GeminiClient.processTurn() that
     // conflict with ACP's explicit turn management via session/prompt,
     // causing infinite agent_thought_chunk loops.
-    skipNextSpeakerCheck: isAcpMode || settings.model?.skipNextSpeakerCheck,
+    skipNextSpeakerCheck: isAcpMode || (settings.model?.skipNextSpeakerCheck ?? true),
     truncateToolOutputThreshold: settings.tools?.truncateToolOutputThreshold,
     eventEmitter: coreEvents,
     useWriteTodos: argv.useWriteTodos ?? settings.useWriteTodos,

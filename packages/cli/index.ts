@@ -47,7 +47,7 @@ async function getMemoryNodeArgs(): Promise<string[]> {
     const { join } = await import('node:path');
     // Respect GEMINI_CLI_HOME environment variable, falling back to os.homedir()
     const baseDir =
-      process.env['GEMINI_CLI_HOME'] || join(os.homedir(), '.gemini');
+      process.env['BEARD_CLI_HOME'] || process.env['GEMINI_CLI_HOME'] || join(os.homedir(), '.openbeard');
     const settingsPath = join(baseDir, 'settings.json');
     const rawSettings = readFileSync(settingsPath, 'utf8');
     const settings = JSON.parse(rawSettings);

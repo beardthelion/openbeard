@@ -53,7 +53,7 @@ const MAX_CHILD_PROCESS_BUFFER_SIZE = 16 * 1024 * 1024; // 16MB
  * by downstream executables and scripts to identify that they were executed
  * from within Gemini CLI.
  */
-export const GEMINI_CLI_IDENTIFICATION_ENV_VAR = 'GEMINI_CLI';
+export const GEMINI_CLI_IDENTIFICATION_ENV_VAR = 'BEARD_CLI';
 
 /**
  * The value of {@link GEMINI_CLI_IDENTIFICATION_ENV_VAR}
@@ -772,7 +772,7 @@ export class ShellExecutionService {
 
         let combinedOutput = state.output;
         if (state.truncated) {
-          const truncationMessage = `\n[GEMINI_CLI_WARNING: Output truncated. The buffer is limited to ${
+          const truncationMessage = `\n[BEARD_WARNING: Output truncated. The buffer is limited to ${
             MAX_CHILD_PROCESS_BUFFER_SIZE / (1024 * 1024)
           }MB.]`;
           combinedOutput += truncationMessage;
@@ -1381,7 +1381,7 @@ export class ShellExecutionService {
         onOutputEvent({
           type: 'data',
           chunk:
-            '[GEMINI_CLI_WARNING] PTY execution failed, falling back to child_process. This may be due to sandbox restrictions.\n',
+            '[BEARD_WARNING] PTY execution failed, falling back to child_process. This may be due to sandbox restrictions.\n',
         });
         throw e;
       } else {

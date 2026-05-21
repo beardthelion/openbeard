@@ -66,7 +66,7 @@ export function AuthDialog({
           ]
         : []),
     {
-      label: 'Use Gemini API Key',
+      label: 'Use Beard API Key',
       value: AuthType.USE_GEMINI,
       key: AuthType.USE_GEMINI,
     },
@@ -89,7 +89,7 @@ export function AuthDialog({
   }
 
   let defaultAuthType = null;
-  const defaultAuthTypeEnv = process.env['GEMINI_DEFAULT_AUTH_TYPE'];
+  const defaultAuthTypeEnv = process.env['BEARD_DEFAULT_AUTH_TYPE'] || process.env['GEMINI_DEFAULT_AUTH_TYPE'];
   if (
     defaultAuthTypeEnv &&
     // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
@@ -108,7 +108,7 @@ export function AuthDialog({
       return item.value === defaultAuthType;
     }
 
-    if (process.env['GEMINI_API_KEY']) {
+    if (process.env['BEARD_API_KEY'] || process.env['GEMINI_API_KEY']) {
       return item.value === AuthType.USE_GEMINI;
     }
 
@@ -207,7 +207,7 @@ export function AuthDialog({
         alignItems="flex-start"
       >
         <Text color={theme.text.primary}>
-          Logging in with Google... Restarting Gemini CLI to continue.
+          Logging in with Google... Restarting OpenBeard to continue.
         </Text>
       </Box>
     );
@@ -252,7 +252,7 @@ export function AuthDialog({
         </Box>
         <Box marginTop={1}>
           <Text color={theme.text.primary}>
-            Terms of Services and Privacy Notice for Gemini CLI
+            Terms of Services and Privacy Notice for OpenBeard
           </Text>
         </Box>
         <Box marginTop={1}>

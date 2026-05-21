@@ -90,11 +90,12 @@ export function getAuthTypeFromEnv(): AuthType | undefined {
   if (process.env['OPENAI_BASE_URL'] || process.env['OPENAI_API_KEY']) {
     return AuthType.OPENAI_COMPATIBLE;
   }
-  if (process.env['GEMINI_API_KEY']) {
+  if (process.env['BEARD_API_KEY'] || process.env['GEMINI_API_KEY']) {
     return AuthType.USE_GEMINI;
   }
   if (
     process.env['CLOUD_SHELL'] === 'true' ||
+    process.env['BEARD_CLI_USE_COMPUTE_ADC'] === 'true' ||
     process.env['GEMINI_CLI_USE_COMPUTE_ADC'] === 'true'
   ) {
     return AuthType.COMPUTE_ADC;
@@ -163,6 +164,7 @@ export async function createContentGeneratorConfig(
 
   const geminiApiKey =
     apiKey ||
+    process.env['BEARD_API_KEY'] ||
     process.env['GEMINI_API_KEY'] ||
     (await loadApiKey()) ||
     undefined;
@@ -192,7 +194,7 @@ export async function createContentGeneratorConfig(
 
   if (authType === AuthType.GATEWAY) {
     contentGeneratorConfig.apiKey =
-      apiKey || process.env['GEMINI_API_KEY'] || '';
+      apiKey || process.env['BEARD_API_KEY'] || process.env['GEMINI_API_KEY'] || '';
     contentGeneratorConfig.vertexai = false;
 
     return contentGeneratorConfig;
@@ -245,7 +247,7 @@ export async function createContentGenerator(
       gcConfig,
     );
     const customHeadersEnv =
-      process.env['GEMINI_CLI_CUSTOM_HEADERS'] || undefined;
+      process.env['BEARD_CLI_CUSTOM_HEADERS'] || process.env['GEMINI_CLI_CUSTOM_HEADERS'] || undefined;
     const clientName = gcConfig.getClientName();
     const surface = determineSurface();
 
@@ -271,17 +273,17 @@ export async function createContentGenerator(
         hostPath += ` > CloudShell/${cloudShellVersion}`;
       }
 
-      userAgent = `CloudCodeVSCode/${version} (aidev_client; os_type=${osType}; os_version=${osVersion}; arch=${arch}; host_path=${hostPath}; proxy_client=geminicli)`;
+      userAgent = `CloudCodeVSCode/${version} (aidev_client; os_type=${osType}; os_version=${osVersion}; arch=${arch}; host_path=${hostPath}; proxy_client=openbeard)`;
     } else {
       const userAgentPrefix = clientName
-        ? `GeminiCLI-${clientName}`
-        : 'GeminiCLI';
+        ? `OpenBeard-${clientName}`
+        : 'OpenBeard';
       userAgent = `${userAgentPrefix}/${version}/${model} (${process.platform}; ${process.arch}; ${surface})`;
     }
 
     const customHeadersMap = parseCustomHeaders(customHeadersEnv);
     const apiKeyAuthMechanism =
-      process.env['GEMINI_API_KEY_AUTH_MECHANISM'] || 'x-goog-api-key';
+      process.env['BEARD_API_KEY_AUTH_MECHANISM'] || process.env['GEMINI_API_KEY_AUTH_MECHANISM'] || 'x-goog-api-key';
     const apiVersionEnv = process.env['GOOGLE_GENAI_API_VERSION'];
 
     const baseHeaders: Record<string, string> = {

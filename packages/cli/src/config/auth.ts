@@ -19,10 +19,10 @@ export async function validateAuthMethod(
   }
 
   if (authMethod === AuthType.USE_GEMINI) {
-    const key = process.env['GEMINI_API_KEY'] || (await loadApiKey());
+    const key = process.env['BEARD_API_KEY'] || process.env['GEMINI_API_KEY'] || (await loadApiKey());
     if (!key) {
       return (
-        'When using Gemini API, you must specify the GEMINI_API_KEY environment variable.\n' +
+        'When using Gemini API, you must specify the BEARD_API_KEY (or GEMINI_API_KEY) environment variable.\n' +
         'Update your environment and try again (no reload needed if using .env)!'
       );
     }

@@ -50,7 +50,7 @@ function getSandboxCommand(
 
   // note environment variable takes precedence over argument (from command line or settings)
   const environmentConfiguredSandbox =
-    process.env['GEMINI_SANDBOX']?.toLowerCase().trim() ?? '';
+    (process.env['BEARD_SANDBOX'] || process.env['GEMINI_SANDBOX'])?.toLowerCase().trim() ?? '';
   sandbox =
     environmentConfiguredSandbox?.length > 0
       ? environmentConfiguredSandbox
@@ -152,6 +152,7 @@ export async function loadSandboxConfig(
 
   const packageJson = await getPackageJson(__dirname);
   const image =
+    process.env['BEARD_SANDBOX_IMAGE'] ??
     process.env['GEMINI_SANDBOX_IMAGE'] ??
     process.env['GEMINI_SANDBOX_IMAGE_DEFAULT'] ??
     customImage ??

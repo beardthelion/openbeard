@@ -46,13 +46,6 @@ export async function validateAuthMethod(
   }
 
   if (authMethod === AuthType.OPENAI_COMPATIBLE) {
-    const baseUrl = process.env['OPENAI_BASE_URL'];
-    if (!baseUrl) {
-      return (
-        'When using OpenAI-compatible API, you must specify the OPENAI_BASE_URL environment variable.\n' +
-        'Update your environment and try again (no reload needed if using .env)!'
-      );
-    }
     return null;
   }
 

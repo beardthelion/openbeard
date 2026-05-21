@@ -447,12 +447,12 @@ export function openaiStreamChunkToGeminiResponse(
   if (chunk.usage) state.usage = chunk.usage;
 
   const delta = choice.delta;
-  let hasNewContent = false;
+  let newDeltaText: string | null = null;
 
-  // Accumulate text
+  // Accumulate text and capture the delta
   if (delta?.content) {
     state.textBuffer += delta.content;
-    hasNewContent = true;
+    newDeltaText = delta.content;
   }
 
   // Accumulate tool calls
@@ -468,7 +468,6 @@ export function openaiStreamChunkToGeminiResponse(
       if (tc.function?.name) buffer.name = tc.function.name;
       if (tc.function?.arguments) {
         buffer.argsBuffer += tc.function.arguments;
-        hasNewContent = true;
       }
     }
   }
@@ -477,16 +476,13 @@ export function openaiStreamChunkToGeminiResponse(
   if (choice.finish_reason) {
     state.finished = true;
     state.finishReason = choice.finish_reason;
-    hasNewContent = true;
   }
 
-  if (!hasNewContent) return null;
-
-  // Build response parts from current state
+  // Build response parts - yield only the DELTA text, not the full buffer
   const parts: Part[] = [];
 
-  if (state.textBuffer) {
-    parts.push({ text: state.textBuffer });
+  if (newDeltaText) {
+    parts.push({ text: newDeltaText });
   }
 
   // Only include tool calls when the stream is finished (they need complete arguments)
@@ -507,6 +503,10 @@ export function openaiStreamChunkToGeminiResponse(
       });
     }
   }
+
+  // Don't yield if there's nothing new (unless we just finished with pending tool calls)
+  if (parts.length === 0 && !state.finished) return null;
+  if (parts.length === 0 && state.toolCallBuffers.size === 0) return null;
 
   const candidate: Candidate = {
     content: {

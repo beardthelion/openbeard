@@ -504,9 +504,10 @@ export function openaiStreamChunkToGeminiResponse(
     }
   }
 
-  // Don't yield if there's nothing new (unless we just finished with pending tool calls)
+  // Don't yield if there's nothing new UNLESS we just finished
+  // (the finishReason is critical for downstream validation)
   if (parts.length === 0 && !state.finished) return null;
-  if (parts.length === 0 && state.toolCallBuffers.size === 0) return null;
+  if (parts.length === 0 && !state.finished && state.toolCallBuffers.size === 0) return null;
 
   const candidate: Candidate = {
     content: {

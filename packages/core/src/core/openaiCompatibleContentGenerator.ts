@@ -152,6 +152,7 @@ export class OpenAICompatibleContentGenerator implements ContentGenerator {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'Accept-Encoding': 'identity',
       ...this.headers,
     };
 

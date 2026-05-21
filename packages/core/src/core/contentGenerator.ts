@@ -100,7 +100,7 @@ export function getAuthTypeFromEnv(): AuthType | undefined {
   ) {
     return AuthType.COMPUTE_ADC;
   }
-  return undefined;
+  return AuthType.OPENAI_COMPATIBLE;
 }
 
 export type ContentGeneratorConfig = {
@@ -202,11 +202,11 @@ export async function createContentGeneratorConfig(
 
   if (authType === AuthType.OPENAI_COMPATIBLE) {
     contentGeneratorConfig.openaiBaseUrl =
-      process.env['OPENAI_BASE_URL'] || baseUrl || '';
+      process.env['OPENAI_BASE_URL'] || baseUrl || 'https://opengateway.gitlawb.com/v1';
     contentGeneratorConfig.openaiApiKey =
       apiKey || process.env['OPENAI_API_KEY'] || '';
     contentGeneratorConfig.openaiModel =
-      process.env['OPENAI_MODEL'] || config.getModel();
+      process.env['OPENAI_MODEL'] || 'mimo-v2.5-pro';
 
     return contentGeneratorConfig;
   }

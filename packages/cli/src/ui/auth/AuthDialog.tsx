@@ -75,6 +75,11 @@ export function AuthDialog({
       value: AuthType.USE_VERTEX_AI,
       key: AuthType.USE_VERTEX_AI,
     },
+    {
+      label: 'OpenAI-Compatible API',
+      value: AuthType.OPENAI_COMPATIBLE,
+      key: AuthType.OPENAI_COMPATIBLE,
+    },
   ];
 
   if (settings.merged.security.auth.enforcedType) {

@@ -49,6 +49,8 @@ export * from './scheduler/types.js';
 export * from './scheduler/tool-executor.js';
 export * from './scheduler/policy.js';
 export * from './core/recordingContentGenerator.js';
+export * from './core/openaiCompatibleContentGenerator.js';
+export * from './core/openaiTranslator.js';
 
 // Export Routing
 export * from './routing/routingStrategy.js';

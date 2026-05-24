@@ -131,7 +131,10 @@ export function SetupWizard({
         signal: controller.signal,
       });
       clearTimeout(timeout);
-      if (response.ok) {
+      // Any HTTP response (even 404/401) means the endpoint is reachable.
+      // 404 on /models just means that path doesn't exist — the server is up.
+      // 401 means auth is required — expected without a valid key.
+      if (response.status < 500) {
         setTestStatus('success');
         settings.setValue(SettingScope.User, 'openai.baseUrl', baseUrl);
         if (apiKey) {

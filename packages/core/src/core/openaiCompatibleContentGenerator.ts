@@ -238,6 +238,29 @@ export class OpenAICompatibleContentGenerator implements ContentGenerator {
                 );
                 if (finalResponse) yield finalResponse;
               }
+            } else if (state.usage) {
+              // The finish chunk was already yielded (before usage arrived),
+              // but we now have usage data. Yield a minimal synthetic response
+              // carrying usageMetadata so the Finished event reaches the
+              // calibration system (TokenGroundTruthEvent).
+              const usageResponse = openaiStreamChunkToGeminiResponse(
+                {
+                  id: state.responseId,
+                  object: 'chat.completion.chunk',
+                  created: 0,
+                  model: state.model,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: {},
+                      finish_reason: state.finishReason || 'stop',
+                    },
+                  ],
+                  usage: state.usage,
+                },
+                state,
+              );
+              if (usageResponse) yield usageResponse;
             }
             return;
           }
@@ -302,6 +325,26 @@ export class OpenAICompatibleContentGenerator implements ContentGenerator {
           );
           if (finalResponse) yield finalResponse;
         }
+      } else if (state.usage) {
+        // Finish already yielded — emit usage-only response for calibration
+        const usageResponse = openaiStreamChunkToGeminiResponse(
+          {
+            id: state.responseId,
+            object: 'chat.completion.chunk',
+            created: 0,
+            model: state.model,
+            choices: [
+              {
+                index: 0,
+                delta: {},
+                finish_reason: state.finishReason || 'stop',
+              },
+            ],
+            usage: state.usage,
+          },
+          state,
+        );
+        if (usageResponse) yield usageResponse;
       }
     } finally {
       reader.releaseLock();

@@ -180,12 +180,32 @@ export class OpenAICompatibleContentGenerator implements ContentGenerator {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
+      const hint = this.getErrorHint(response.status);
       throw new Error(
-        `OpenAI-compatible API error: ${response.status} ${response.statusText} - ${errorText}`,
+        `OpenAI API error ${response.status} ${response.statusText}: ${errorText}${hint}`,
       );
     }
 
     return response;
+  }
+
+  private getErrorHint(status: number): string {
+    switch (status) {
+      case 401:
+        return '\n\nCheck your API key: set OPENAI_API_KEY or update ~/.openbeard/settings.json';
+      case 403:
+        return '\n\nAccess denied. Your API key may lack permissions for this model.';
+      case 404:
+        return `\n\nEndpoint not found. Verify OPENAI_BASE_URL (${this.baseUrl}) and model (${this.model}) are correct.`;
+      case 429:
+        return '\n\nRate limited. Wait a moment and try again, or check your plan limits.';
+      case 500:
+      case 502:
+      case 503:
+        return '\n\nServer error. The API endpoint may be temporarily unavailable.';
+      default:
+        return '';
+    }
   }
 
   private async *parseSSEStream(

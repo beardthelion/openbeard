@@ -87,9 +87,6 @@ export function getAuthTypeFromEnv(): AuthType | undefined {
   if (process.env['GOOGLE_GEMINI_BASE_URL']) {
     return AuthType.GATEWAY;
   }
-  if (process.env['OPENAI_BASE_URL'] || process.env['OPENAI_API_KEY']) {
-    return AuthType.OPENAI_COMPATIBLE;
-  }
   if (process.env['BEARD_API_KEY'] || process.env['GEMINI_API_KEY']) {
     return AuthType.USE_GEMINI;
   }
@@ -100,7 +97,10 @@ export function getAuthTypeFromEnv(): AuthType | undefined {
   ) {
     return AuthType.COMPUTE_ADC;
   }
-  return AuthType.OPENAI_COMPATIBLE;
+  if (process.env['OPENAI_BASE_URL'] || process.env['OPENAI_API_KEY']) {
+    return AuthType.OPENAI_COMPATIBLE;
+  }
+  return undefined;
 }
 
 export type ContentGeneratorConfig = {
@@ -144,8 +144,10 @@ export async function createContentGeneratorConfig(
   customHeaders?: Record<string, string>,
   vertexAiRouting?: VertexAiRoutingConfig,
 ): Promise<ContentGeneratorConfig> {
+  // Default to OPENAI_COMPATIBLE when no auth type is determined
+  const effectiveAuthType = authType ?? AuthType.OPENAI_COMPATIBLE;
   const contentGeneratorConfig: ContentGeneratorConfig = {
-    authType,
+    authType: effectiveAuthType,
     proxy: config?.getProxy(),
     baseUrl,
     customHeaders,
@@ -156,8 +158,8 @@ export async function createContentGeneratorConfig(
   // Return before touching the API-key keychain: on Linux without a Secret Service
   // (WSL/SSH/Docker/CI) keytar can block indefinitely on its functional probe.
   if (
-    authType === AuthType.LOGIN_WITH_GOOGLE ||
-    authType === AuthType.COMPUTE_ADC
+    effectiveAuthType === AuthType.LOGIN_WITH_GOOGLE ||
+    effectiveAuthType === AuthType.COMPUTE_ADC
   ) {
     return contentGeneratorConfig;
   }
@@ -175,7 +177,7 @@ export async function createContentGeneratorConfig(
     undefined;
   const googleCloudLocation = process.env['GOOGLE_CLOUD_LOCATION'] || undefined;
 
-  if (authType === AuthType.USE_GEMINI && geminiApiKey) {
+  if (effectiveAuthType === AuthType.USE_GEMINI && geminiApiKey) {
     contentGeneratorConfig.apiKey = geminiApiKey;
     contentGeneratorConfig.vertexai = false;
 
@@ -183,7 +185,7 @@ export async function createContentGeneratorConfig(
   }
 
   if (
-    authType === AuthType.USE_VERTEX_AI &&
+    effectiveAuthType === AuthType.USE_VERTEX_AI &&
     (googleApiKey || (googleCloudProject && googleCloudLocation))
   ) {
     contentGeneratorConfig.apiKey = googleApiKey;
@@ -192,7 +194,7 @@ export async function createContentGeneratorConfig(
     return contentGeneratorConfig;
   }
 
-  if (authType === AuthType.GATEWAY) {
+  if (effectiveAuthType === AuthType.GATEWAY) {
     contentGeneratorConfig.apiKey =
       apiKey || process.env['BEARD_API_KEY'] || process.env['GEMINI_API_KEY'] || '';
     contentGeneratorConfig.vertexai = false;
@@ -200,7 +202,7 @@ export async function createContentGeneratorConfig(
     return contentGeneratorConfig;
   }
 
-  if (authType === AuthType.OPENAI_COMPATIBLE) {
+  if (effectiveAuthType === AuthType.OPENAI_COMPATIBLE) {
     contentGeneratorConfig.openaiBaseUrl =
       process.env['OPENAI_BASE_URL'] || baseUrl || 'https://opengateway.gitlawb.com/v1';
     contentGeneratorConfig.openaiApiKey =

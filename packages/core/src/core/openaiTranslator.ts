@@ -57,10 +57,23 @@ export interface OpenAIRequestParams {
   stream?: boolean;
   stream_options?: { include_usage: boolean };
   tools?: OpenAITool[];
+  tool_choice?: 'auto' | 'none' | 'required' | { type: 'function'; function: { name: string } };
   response_format?: { type: string };
   seed?: number;
   presence_penalty?: number;
   frequency_penalty?: number;
+}
+
+export interface OpenAIUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  prompt_tokens_details?: {
+    cached_tokens?: number;
+  };
+  completion_tokens_details?: {
+    reasoning_tokens?: number;
+  };
 }
 
 export interface OpenAIChatCompletion {
@@ -69,11 +82,7 @@ export interface OpenAIChatCompletion {
   created: number;
   model: string;
   choices: OpenAIChoice[];
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
+  usage?: OpenAIUsage;
 }
 
 export interface OpenAIChoice {
@@ -88,11 +97,7 @@ export interface OpenAIStreamChunk {
   created: number;
   model: string;
   choices: OpenAIStreamChoice[];
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
+  usage?: OpenAIUsage;
 }
 
 export interface OpenAIStreamChoice {
@@ -133,11 +138,7 @@ export interface StreamAccumulatorState {
   responseId: string;
   model: string;
   yieldedFinish: boolean;
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
+  usage?: OpenAIUsage;
 }
 
 export function createStreamAccumulator(): StreamAccumulatorState {
@@ -353,6 +354,26 @@ export function geminiConfigToOpenAIParams(
     params.response_format = { type: 'json_object' };
   }
 
+  // Translate Gemini toolConfig to OpenAI tool_choice
+  const toolConfig = config.toolConfig;
+  if (toolConfig?.functionCallingConfig) {
+    const fcc = toolConfig.functionCallingConfig;
+    const mode = fcc.mode;
+    if (mode === 'NONE') {
+      params.tool_choice = 'none';
+    } else if (mode === 'ANY') {
+      if (fcc.allowedFunctionNames?.length === 1) {
+        params.tool_choice = {
+          type: 'function',
+          function: { name: fcc.allowedFunctionNames[0] },
+        };
+      } else {
+        params.tool_choice = 'required';
+      }
+    }
+    // AUTO is the OpenAI default, so we skip it
+  }
+
   return params;
 }
 
@@ -440,6 +461,12 @@ export function openaiResponseToGeminiResponse(
         promptTokenCount: response.usage.prompt_tokens,
         candidatesTokenCount: response.usage.completion_tokens,
         totalTokenCount: response.usage.total_tokens,
+        ...(response.usage.prompt_tokens_details?.cached_tokens !== undefined && {
+          cachedContentTokenCount: response.usage.prompt_tokens_details.cached_tokens,
+        }),
+        ...(response.usage.completion_tokens_details?.reasoning_tokens !== undefined && {
+          thoughtsTokenCount: response.usage.completion_tokens_details.reasoning_tokens,
+        }),
       }
     : undefined;
   geminiResponse.responseId = response.id;
@@ -568,6 +595,12 @@ export function openaiStreamChunkToGeminiResponse(
         promptTokenCount: state.usage.prompt_tokens,
         candidatesTokenCount: state.usage.completion_tokens,
         totalTokenCount: state.usage.total_tokens,
+        ...(state.usage.prompt_tokens_details?.cached_tokens !== undefined && {
+          cachedContentTokenCount: state.usage.prompt_tokens_details.cached_tokens,
+        }),
+        ...(state.usage.completion_tokens_details?.reasoning_tokens !== undefined && {
+          thoughtsTokenCount: state.usage.completion_tokens_details.reasoning_tokens,
+        }),
       }
     : undefined;
   geminiResponse.responseId = state.responseId || undefined;

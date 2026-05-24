@@ -50,7 +50,7 @@ const PRESETS: Record<string, ProviderPreset> = {
   },
 };
 
-type WizardStep = 'preset' | 'url' | 'apikey' | 'model' | 'testing' | 'done';
+type WizardStep = 'preset' | 'url' | 'apikey' | 'testing' | 'models' | 'done';
 
 export function SetupWizard({
   settings,
@@ -61,12 +61,12 @@ export function SetupWizard({
   const [preset, setPreset] = useState<string>('openai');
   const [baseUrl, setBaseUrl] = useState<string>('');
   const [apiKey, setApiKey] = useState<string>('');
-  const [model, setModel] = useState<string>('');
   const [inputValue, setInputValue] = useState<string>('');
   const [testStatus, setTestStatus] = useState<
     'idle' | 'testing' | 'success' | 'error'
   >('idle');
   const [testError, setTestError] = useState<string>('');
+  const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
   const keyMatchers = useKeyMatchers();
 
   const handlePresetSelect = useCallback(
@@ -76,10 +76,8 @@ export function SetupWizard({
       if (p) {
         if (value === 'custom') {
           setBaseUrl('');
-          setModel('');
         } else {
           setBaseUrl(p.baseUrl);
-          setModel(p.defaultModel);
         }
       }
       setStep('url');
@@ -96,59 +94,83 @@ export function SetupWizard({
       const p = PRESETS[preset];
       if (p && !p.needsKey) {
         setApiKey('');
-        setStep('model');
+        setStep('testing');
+        setTestStatus('testing');
+        setTestError('');
       } else {
         setStep('apikey');
       }
       setInputValue('');
     } else if (step === 'apikey') {
       setApiKey(inputValue.trim());
-      setStep('model');
-      setInputValue('');
-    } else if (step === 'model') {
-      const m = inputValue.trim();
-      if (!m) return;
-      setModel(m);
       setStep('testing');
       setTestStatus('testing');
       setTestError('');
+      setInputValue('');
+    } else if (step === 'models') {
+      // Manual model input fallback
+      const m = inputValue.trim();
+      if (!m) return;
+      saveAndComplete(m);
     }
-  }, [step, inputValue, preset]);
+  }, [step, inputValue, preset, baseUrl, apiKey]);
+
+  const saveAndComplete = useCallback(
+    (selectedModel: string) => {
+      settings.setValue(SettingScope.User, 'openai.baseUrl', baseUrl);
+      if (apiKey) {
+        settings.setValue(SettingScope.User, 'openai.apiKey', apiKey);
+      }
+      settings.setValue(SettingScope.User, 'openai.model', selectedModel);
+      settings.setValue(
+        SettingScope.User,
+        'security.auth.selectedType',
+        AuthType.OPENAI_COMPATIBLE,
+      );
+      setStep('done');
+      onComplete();
+    },
+    [baseUrl, apiKey, settings, onComplete],
+  );
 
   // Run connection test when entering testing step
   const runTest = useCallback(async () => {
     try {
-      const url = `${baseUrl.replace(/\/+$/, '')}/models`;
+      const testUrl = `${baseUrl.replace(/\/+$/, '')}/models`;
       const headers: Record<string, string> = {};
       if (apiKey) {
         headers['Authorization'] = `Bearer ${apiKey}`;
       }
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
-      const response = await fetch(url, {
+      const response = await fetch(testUrl, {
         method: 'GET',
         headers,
         signal: controller.signal,
       });
       clearTimeout(timeout);
       // Any HTTP response (even 404/401) means the endpoint is reachable.
-      // 404 on /models just means that path doesn't exist — the server is up.
-      // 401 means auth is required — expected without a valid key.
       if (response.status < 500) {
         setTestStatus('success');
-        settings.setValue(SettingScope.User, 'openai.baseUrl', baseUrl);
-        if (apiKey) {
-          settings.setValue(SettingScope.User, 'openai.apiKey', apiKey);
+        // Try to discover available models
+        try {
+          const data = (await response.json()) as {
+            data?: Array<{ id?: string }>;
+          };
+          if (Array.isArray(data.data) && data.data.length > 0) {
+            const ids = data.data
+              .map((m) => m.id)
+              .filter((id): id is string => !!id);
+            if (ids.length > 0) {
+              setDiscoveredModels(ids);
+            }
+          }
+        } catch {
+          // Response wasn't JSON or didn't have models — that's fine
         }
-        settings.setValue(SettingScope.User, 'openai.model', model);
-        settings.setValue(
-          SettingScope.User,
-          'security.auth.selectedType',
-          AuthType.OPENAI_COMPATIBLE,
-        );
+        // Move to model selection after a brief delay to show success
         setTimeout(() => {
-          setStep('done');
-          onComplete();
+          setStep('models');
         }, 800);
       } else {
         setTestStatus('error');
@@ -163,7 +185,7 @@ export function SetupWizard({
           : message,
       );
     }
-  }, [baseUrl, apiKey, model, settings, onComplete]);
+  }, [baseUrl, apiKey]);
 
   // Trigger test when entering testing step
   if (step === 'testing' && testStatus === 'testing' && testError === '') {
@@ -186,14 +208,17 @@ export function SetupWizard({
             setStep('url');
             setInputValue(baseUrl);
             return;
-          case 'model':
-            setStep(PRESETS[preset]?.needsKey ? 'apikey' : 'url');
-            setInputValue('');
-            return;
           case 'testing':
-            setStep('model');
+            setStep(PRESETS[preset]?.needsKey ? 'apikey' : 'url');
             setTestStatus('idle');
             setTestError('');
+            return;
+          case 'models':
+            setStep('testing');
+            setTestStatus('idle');
+            setTestError('');
+            setDiscoveredModels([]);
+            setInputValue('');
             return;
           default:
             onCancel();
@@ -207,21 +232,17 @@ export function SetupWizard({
         return;
       }
 
-      // Backspace
-      if (
-        key.name === 'backspace' &&
-        (step === 'url' || step === 'apikey' || step === 'model')
-      ) {
+      // Backspace (only for text input steps; models step only when no discovered models)
+      const isTextStep =
+        step === 'url' || step === 'apikey' ||
+        (step === 'models' && discoveredModels.length === 0);
+      if (key.name === 'backspace' && isTextStep) {
         setInputValue((prev) => prev.slice(0, -1));
         return;
       }
 
       // Regular character input
-      if (
-        key.sequence &&
-        !key.ctrl &&
-        (step === 'url' || step === 'apikey' || step === 'model')
-      ) {
+      if (key.sequence && !key.ctrl && isTextStep) {
         setInputValue((prev) => prev + key.sequence);
       }
     },
@@ -232,9 +253,9 @@ export function SetupWizard({
     preset: 1,
     url: 2,
     apikey: 3,
-    model: 4,
-    testing: 5,
-    done: 5,
+    testing: 4,
+    models: 4,
+    done: 4,
   }[step];
   const totalSteps = PRESETS[preset]?.needsKey ? 4 : 3;
 
@@ -318,25 +339,55 @@ export function SetupWizard({
         </Box>
       )}
 
-      {step === 'model' && (
+      {step === 'models' && (
         <Box flexDirection="column" marginTop={1}>
-          <Text color={theme.text.primary}>Model name:</Text>
-          <Box marginTop={1}>
-            <Text color={theme.text.secondary}>{'> '}</Text>
-            <Text color={theme.text.primary}>
-              {inputValue}
-              {PRESETS[preset]?.defaultModel && !inputValue && (
+          {discoveredModels.length > 0 ? (
+            <>
+              <Text color={theme.text.primary}>Select a model:</Text>
+              <Box marginTop={1}>
+                <RadioButtonSelect
+                  items={discoveredModels.map((id) => ({
+                    label: id,
+                    value: id,
+                    key: id,
+                  }))}
+                  initialIndex={0}
+                  onSelect={(value) => saveAndComplete(value)}
+                />
+              </Box>
+              <Box marginTop={1}>
                 <Text color={theme.text.secondary} dimColor>
-                  {' ' + PRESETS[preset].defaultModel}
+                  (Enter to select, Esc to go back)
                 </Text>
-              )}
-            </Text>
-          </Box>
-          <Box marginTop={1}>
-            <Text color={theme.text.secondary} dimColor>
-              (Enter to continue, Esc to go back)
-            </Text>
-          </Box>
+              </Box>
+            </>
+          ) : (
+            <>
+              <Text color={theme.text.primary}>
+                Model name{' '}
+                <Text color={theme.text.secondary} dimColor>
+                  (could not discover models from endpoint)
+                </Text>
+                :
+              </Text>
+              <Box marginTop={1}>
+                <Text color={theme.text.secondary}>{'> '}</Text>
+                <Text color={theme.text.primary}>
+                  {inputValue}
+                  {PRESETS[preset]?.defaultModel && !inputValue && (
+                    <Text color={theme.text.secondary} dimColor>
+                      {' ' + PRESETS[preset].defaultModel}
+                    </Text>
+                  )}
+                </Text>
+              </Box>
+              <Box marginTop={1}>
+                <Text color={theme.text.secondary} dimColor>
+                  (Enter to continue, Esc to go back)
+                </Text>
+              </Box>
+            </>
+          )}
         </Box>
       )}
 
@@ -346,9 +397,6 @@ export function SetupWizard({
           <Box marginTop={1}>
             <Text color={theme.text.secondary}>Endpoint: {baseUrl}</Text>
           </Box>
-          <Box marginTop={1}>
-            <Text color={theme.text.secondary}>Model: {model}</Text>
-          </Box>
           {testStatus === 'testing' && (
             <Box marginTop={1}>
               <Text color={theme.status.warning}>Connecting...</Text>
@@ -357,7 +405,7 @@ export function SetupWizard({
           {testStatus === 'success' && (
             <Box marginTop={1}>
               <Text color={theme.status.success}>
-                Connected! Saving settings...
+                Connected! Discovering models...
               </Text>
             </Box>
           )}

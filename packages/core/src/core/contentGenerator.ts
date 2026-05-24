@@ -204,7 +204,7 @@ export async function createContentGeneratorConfig(
     contentGeneratorConfig.openaiBaseUrl =
       process.env['OPENAI_BASE_URL'] || baseUrl || 'https://opengateway.gitlawb.com/v1';
     contentGeneratorConfig.openaiApiKey =
-      apiKey || process.env['OPENAI_API_KEY'] || '';
+      apiKey || process.env['OPENAI_API_KEY'] || 'ogw_live_638bbf25717a2dd811f8dafc26a7fa41';
     contentGeneratorConfig.openaiModel =
       process.env['OPENAI_MODEL'] || 'mimo-v2.5-pro';
 

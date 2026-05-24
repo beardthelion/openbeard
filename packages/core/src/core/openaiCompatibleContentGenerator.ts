@@ -141,7 +141,7 @@ export class OpenAICompatibleContentGenerator implements ContentGenerator {
       messages,
       ...configParams,
       ...(tools && { tools }),
-      ...(stream && { stream: true }),
+      ...(stream && { stream: true, stream_options: { include_usage: true } }),
     };
 
     return body;
@@ -214,26 +214,30 @@ export class OpenAICompatibleContentGenerator implements ContentGenerator {
           const trimmed = line.trim();
           if (!trimmed || trimmed.startsWith(':')) continue; // skip empty lines and comments
           if (trimmed === 'data: [DONE]') {
-            // Final yield if we have accumulated content
-            if (state.textBuffer || state.toolCallBuffers.size > 0) {
-              const finalResponse = openaiStreamChunkToGeminiResponse(
-                {
-                  id: state.responseId,
-                  object: 'chat.completion.chunk',
-                  created: 0,
-                  model: state.model,
-                  choices: [
-                    {
-                      index: 0,
-                      delta: {},
-                      finish_reason: state.finishReason || 'stop',
-                    },
-                  ],
-                  ...(state.usage && { usage: state.usage }),
-                },
-                state,
-              );
-              if (finalResponse) yield finalResponse;
+            // Only yield a final response if the finish hasn't already been
+            // yielded from the actual stream chunk (which happens when a
+            // single chunk carries both tool_calls and finish_reason).
+            if (!state.yieldedFinish) {
+              if (state.textBuffer || state.thoughtBuffer || state.toolCallBuffers.size > 0) {
+                const finalResponse = openaiStreamChunkToGeminiResponse(
+                  {
+                    id: state.responseId,
+                    object: 'chat.completion.chunk',
+                    created: 0,
+                    model: state.model,
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {},
+                        finish_reason: state.finishReason || 'stop',
+                      },
+                    ],
+                    ...(state.usage && { usage: state.usage }),
+                  },
+                  state,
+                );
+                if (finalResponse) yield finalResponse;
+              }
             }
             return;
           }
@@ -277,25 +281,27 @@ export class OpenAICompatibleContentGenerator implements ContentGenerator {
       }
 
       // Final yield if stream ended without [DONE]
-      if (state.textBuffer || state.toolCallBuffers.size > 0) {
-        const finalResponse = openaiStreamChunkToGeminiResponse(
-          {
-            id: state.responseId,
-            object: 'chat.completion.chunk',
-            created: 0,
-            model: state.model,
-            choices: [
-              {
-                index: 0,
-                delta: {},
-                finish_reason: state.finishReason || 'stop',
-              },
-            ],
-            ...(state.usage && { usage: state.usage }),
-          },
-          state,
-        );
-        if (finalResponse) yield finalResponse;
+      if (!state.yieldedFinish) {
+        if (state.textBuffer || state.thoughtBuffer || state.toolCallBuffers.size > 0) {
+          const finalResponse = openaiStreamChunkToGeminiResponse(
+            {
+              id: state.responseId,
+              object: 'chat.completion.chunk',
+              created: 0,
+              model: state.model,
+              choices: [
+                {
+                  index: 0,
+                  delta: {},
+                  finish_reason: state.finishReason || 'stop',
+                },
+              ],
+              ...(state.usage && { usage: state.usage }),
+            },
+            state,
+          );
+          if (finalResponse) yield finalResponse;
+        }
       }
     } finally {
       reader.releaseLock();
@@ -334,7 +340,7 @@ function toContent(content: ContentUnion): Content {
     return content;
   }
   // It's a Part
-  return { role: 'user', parts: [toContent as unknown as Part] };
+  return { role: 'user', parts: [toPart(content as PartUnion)] };
 }
 
 function toContents(contents: ContentListUnion): Content[] {

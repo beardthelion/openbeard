@@ -20,6 +20,7 @@ import {
 export interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content?: string | null | OpenAIContentPart[];
+  reasoning_content?: string | null;
   tool_calls?: OpenAIToolCall[];
   tool_call_id?: string;
 }
@@ -54,6 +55,7 @@ export interface OpenAIRequestParams {
   max_tokens?: number;
   stop?: string[];
   stream?: boolean;
+  stream_options?: { include_usage: boolean };
   tools?: OpenAITool[];
   response_format?: { type: string };
   seed?: number;
@@ -102,6 +104,7 @@ export interface OpenAIStreamChoice {
 export interface OpenAIStreamDelta {
   role?: string;
   content?: string | null;
+  reasoning_content?: string | null;
   tool_calls?: OpenAIStreamToolCall[];
 }
 
@@ -119,6 +122,7 @@ export interface OpenAIStreamToolCall {
 
 export interface StreamAccumulatorState {
   textBuffer: string;
+  thoughtBuffer: string;
   toolCallBuffers: Map<
     number,
     { id: string; name: string; argsBuffer: string }
@@ -128,6 +132,7 @@ export interface StreamAccumulatorState {
   role: string;
   responseId: string;
   model: string;
+  yieldedFinish: boolean;
   usage?: {
     prompt_tokens: number;
     completion_tokens: number;
@@ -138,12 +143,14 @@ export interface StreamAccumulatorState {
 export function createStreamAccumulator(): StreamAccumulatorState {
   return {
     textBuffer: '',
+    thoughtBuffer: '',
     toolCallBuffers: new Map(),
     finished: false,
     finishReason: null,
     role: 'model',
     responseId: '',
     model: '',
+    yieldedFinish: false,
   };
 }
 
@@ -277,7 +284,7 @@ export function geminiContentsToOpenAIMessages(
         });
         messages.push({
           role: 'assistant',
-          content: textParts || null,
+          ...(textParts ? { content: textParts } : {}),
           tool_calls: toolCalls,
         });
       } else if (textParts) {
@@ -299,12 +306,19 @@ export function geminiToolsToOpenAITools(tools?: Tool[]): OpenAITool[] | undefin
   for (const tool of tools) {
     if (tool.functionDeclarations) {
       for (const fd of tool.functionDeclarations) {
+        // Gemini CLI stores schemas in parametersJsonSchema, while the
+        // @google/genai SDK's FunctionDeclaration has both `parameters`
+        // (Schema type) and `parametersJsonSchema`. Prefer the latter since
+        // it's what the Gemini CLI tools actually populate.
+        const schema =
+          (fd.parametersJsonSchema as Record<string, unknown>) ||
+          (fd.parameters as Record<string, unknown>);
         openaiTools.push({
           type: 'function',
           function: {
             name: fd.name || '',
             description: fd.description || '',
-            parameters: (fd.parameters as Record<string, unknown>) || undefined,
+            ...(schema && { parameters: schema }),
           },
         });
       }
@@ -374,6 +388,10 @@ export function openaiResponseToGeminiResponse(
   const parts: Part[] = [];
 
   if (choice?.message) {
+    // Handle reasoning_content as Gemini thought parts
+    if (choice.message.reasoning_content) {
+      parts.push({ text: choice.message.reasoning_content, thought: true });
+    }
     if (choice.message.content) {
       if (typeof choice.message.content === 'string') {
         parts.push({ text: choice.message.content });
@@ -438,16 +456,25 @@ export function openaiStreamChunkToGeminiResponse(
   chunk: OpenAIStreamChunk,
   state: StreamAccumulatorState,
 ): GenerateContentResponse | null {
-  const choice = chunk.choices?.[0];
-  if (!choice) return null;
-
-  // Update state from chunk
+  // Update state from chunk — must happen before the early return so that
+  // usage-only chunks (empty choices, sent when stream_options.include_usage
+  // is true) still capture token counts.
   if (chunk.id) state.responseId = chunk.id;
   if (chunk.model) state.model = chunk.model;
   if (chunk.usage) state.usage = chunk.usage;
 
+  const choice = chunk.choices?.[0];
+  if (!choice) return null;
+
   const delta = choice.delta;
   let newDeltaText: string | null = null;
+  let newDeltaThought: string | null = null;
+
+  // Accumulate reasoning_content as thoughts (MiMo / DeepSeek style)
+  if (delta?.reasoning_content) {
+    state.thoughtBuffer += delta.reasoning_content;
+    newDeltaThought = delta.reasoning_content;
+  }
 
   // Accumulate text and capture the delta
   if (delta?.content) {
@@ -478,8 +505,15 @@ export function openaiStreamChunkToGeminiResponse(
     state.finishReason = choice.finish_reason;
   }
 
-  // Build response parts - yield only the DELTA text, not the full buffer
+  // Build response parts - yield only the DELTA, not the full buffer
   const parts: Part[] = [];
+
+  // Emit reasoning_content as Gemini thought parts (thought: true).
+  // Use the full accumulated buffer to match Gemini's native behavior
+  // where each chunk contains the complete thought text so far.
+  if (newDeltaThought && state.thoughtBuffer) {
+    parts.push({ text: state.thoughtBuffer, thought: true });
+  }
 
   if (newDeltaText) {
     parts.push({ text: newDeltaText });
@@ -502,6 +536,13 @@ export function openaiStreamChunkToGeminiResponse(
         } as FunctionCall,
       });
     }
+  }
+
+  // If we're yielding a finished response, clear the state so the [DONE]
+  // handler in parseSSEStream doesn't double-yield the same tool calls.
+  if (parts.length > 0 && state.finished) {
+    state.yieldedFinish = true;
+    state.toolCallBuffers.clear();
   }
 
   // Don't yield if there's nothing new UNLESS we just finished

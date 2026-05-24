@@ -217,7 +217,6 @@ export function SetupWizard({
       if (
         key.sequence &&
         !key.ctrl &&
-        !key.meta &&
         (step === 'url' || step === 'apikey' || step === 'model')
       ) {
         setInputValue((prev) => prev + key.sequence);

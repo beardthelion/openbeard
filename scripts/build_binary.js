@@ -273,7 +273,7 @@ const assets = {
 };
 
 const manifest = {
-  main: 'gemini.mjs',
+  main: 'beard.mjs',
   mainHash: '',
   version: packageJson.version,
   files: [],
@@ -287,8 +287,8 @@ for (const jsFile of jsFiles) {
   const hash = sha256(content);
 
   // Node SEA requires the main entry point to be explicitly mapped
-  if (jsFile === 'gemini.js') {
-    assets['gemini.mjs'] = fsPath;
+  if (jsFile === 'beard.js') {
+    assets['beard.mjs'] = fsPath;
     manifest.mainHash = hash;
   } else {
     // Other chunks need to be mapped exactly as they are named so dynamic imports find them
@@ -410,7 +410,7 @@ const targetDir = join(distDir, targetName);
 mkdirSync(targetDir, { recursive: true });
 
 const nodeBinary = process.execPath;
-const binaryName = platform === 'win32' ? 'gemini.exe' : 'gemini';
+const binaryName = platform === 'win32' ? 'beard.exe' : 'beard';
 const targetBinaryPath = join(targetDir, binaryName);
 
 console.log(`Copying node binary from ${nodeBinary} to ${targetBinaryPath}...`);
@@ -443,8 +443,8 @@ if (existsSync(bundleDir)) {
 
 // Clean up source JS files from output (we only want embedded)
 const filesToRemove = [
-  'gemini.mjs',
-  'gemini.mjs.map',
+  'beard.mjs',
+  'beard.mjs.map',
   'gemini-sea.cjs',
   'sea-launch.cjs',
   'manifest.json',

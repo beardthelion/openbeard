@@ -76,7 +76,7 @@ if (!keepCiEnv) {
   if (ciKeys.length > 0) {
     ciKeys.forEach((k) => delete env[k]);
     process.stderr.write(
-      `[gemini] Removed CI env vars to keep interactive mode working in dev: ${ciKeys.join(', ')}. Set GEMINI_KEEP_CI_ENV=1 to disable.\n`,
+      `[beard] Removed CI env vars to keep interactive mode working in dev: ${ciKeys.join(', ')}. Set GEMINI_KEEP_CI_ENV=1 to disable.\n`,
     );
   }
 }

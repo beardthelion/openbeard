@@ -10,7 +10,7 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "gemini": "dist/index.js"
+    "beard": "dist/index.js"
   },
   "scripts": {
     "build": "node ../../scripts/build_package.js",

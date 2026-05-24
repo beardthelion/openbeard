@@ -69,7 +69,7 @@ function verifyIntegrity(dir, manifest, fsMod = fs, cryptoMod = crypto) {
       return hash.digest('hex');
     };
 
-    if (calculateHash(path.join(dir, 'gemini.mjs')) !== manifest.mainHash)
+    if (calculateHash(path.join(dir, 'beard.mjs')) !== manifest.mainHash)
       return false;
     if (manifest.files) {
       for (const file of manifest.files) {
@@ -109,7 +109,7 @@ function prepareRuntime(manifest, getAssetFn, deps = {}) {
   let tempBase = osMod.tmpdir();
 
   if (process.platform === 'win32' && processEnv.LOCALAPPDATA) {
-    const appDir = pathMod.join(processEnv.LOCALAPPDATA, 'Google', 'GeminiCLI');
+    const appDir = pathMod.join(processEnv.LOCALAPPDATA, 'OpenBeard', 'CLI');
     try {
       if (!fsMod.existsSync(appDir)) {
         fsMod.mkdirSync(appDir, { recursive: true, mode: 0o700 });
@@ -122,7 +122,7 @@ function prepareRuntime(manifest, getAssetFn, deps = {}) {
 
   const finalRuntimeDir = pathMod.join(
     tempBase,
-    `gemini-runtime-${safeVersion}-${safeUsername}`,
+    `beard-runtime-${safeVersion}-${safeUsername}`,
   );
 
   let runtimeDir;
@@ -163,7 +163,7 @@ function prepareRuntime(manifest, getAssetFn, deps = {}) {
   if (!useExisting) {
     const setupDir = pathMod.join(
       tempBase,
-      `gemini-setup-${processPid}-${Date.now()}`,
+      `beard-setup-${processPid}-${Date.now()}`,
     );
 
     try {
@@ -179,7 +179,7 @@ function prepareRuntime(manifest, getAssetFn, deps = {}) {
           mode: 0o755,
         });
       };
-      writeToSetup('gemini.mjs', 'gemini.mjs');
+      writeToSetup('beard.mjs', 'beard.mjs');
       if (manifest.files) {
         for (const file of manifest.files) {
           writeToSetup(file.key, file.path);
@@ -251,7 +251,7 @@ async function main(getAssetFn = getAsset) {
     crypto,
   });
 
-  const mainPath = path.join(runtimeDir, 'gemini.mjs');
+  const mainPath = path.join(runtimeDir, 'beard.mjs');
 
   await import(pathToFileURL(mainPath).href).catch((err) => {
     console.error('Fatal Error: Failed to launch. Please reinstall.', err);

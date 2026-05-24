@@ -41,7 +41,7 @@ RUN HUSKY=0 npm run build && \
 # ---- Stage 2: Runtime ----
 FROM docker.io/library/node:20-slim
 
-ARG SANDBOX_NAME="gemini-cli-sandbox"
+ARG SANDBOX_NAME="openbeard-sandbox"
 ARG CLI_VERSION_ARG
 ENV SANDBOX="$SANDBOX_NAME"
 ENV CLI_VERSION=$CLI_VERSION_ARG
@@ -86,9 +86,9 @@ COPY --chown=node:node packages/core/dist/google-gemini-cli-core-*.tgz /tmp/gemi
 RUN npm install -g /tmp/gemini-core.tgz \
   && npm install -g /tmp/gemini-cli.tgz \
   && node -e "const fs=require('node:fs'); JSON.parse(fs.readFileSync('/usr/local/share/npm-global/lib/node_modules/@google/gemini-cli/package.json','utf8')); JSON.parse(fs.readFileSync('/usr/local/share/npm-global/lib/node_modules/@google/gemini-cli-core/package.json','utf8'));" \
-  && gemini --version > /dev/null \
+  && beard --version > /dev/null \
   && npm cache clean --force \
   && rm -f /tmp/gemini-{cli,core}.tgz
 
 # default entrypoint when none specified
-ENTRYPOINT ["/usr/local/share/npm-global/bin/gemini"]
+ENTRYPOINT ["/usr/local/share/npm-global/bin/beard"]

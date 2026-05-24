@@ -84,7 +84,7 @@
     "cross-spawn": "^7.0.6"
   },
   "bin": {
-    "gemini": "bundle/gemini.js"
+    "beard": "bundle/beard.js"
   },
   "files": [
     "bundle/",

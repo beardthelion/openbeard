@@ -1141,6 +1141,48 @@ const SETTINGS_SCHEMA = {
     },
   },
 
+  openai: {
+    type: 'object',
+    label: 'OpenAI-Compatible API',
+    category: 'Model',
+    requiresRestart: true,
+    default: {},
+    description:
+      'Settings for OpenAI-compatible API endpoints (OpenAI, Ollama, vLLM, LiteLLM, etc.).',
+    showInDialog: false,
+    properties: {
+      baseUrl: {
+        type: 'string',
+        label: 'Base URL',
+        category: 'Model',
+        requiresRestart: true,
+        default: undefined as string | undefined,
+        description:
+          'Base URL for the OpenAI-compatible API (e.g. http://localhost:11434/v1).',
+        showInDialog: true,
+      },
+      apiKey: {
+        type: 'string',
+        label: 'API Key',
+        category: 'Model',
+        requiresRestart: true,
+        default: undefined as string | undefined,
+        description: 'API key for the OpenAI-compatible endpoint.',
+        showInDialog: false,
+      },
+      model: {
+        type: 'string',
+        label: 'Model',
+        category: 'Model',
+        requiresRestart: true,
+        default: undefined as string | undefined,
+        description:
+          'Model name to use (e.g. gpt-4, llama3, mimo-v2.5-pro).',
+        showInDialog: true,
+      },
+    },
+  },
+
   modelConfigs: {
     type: 'object',
     label: 'Model Configs',

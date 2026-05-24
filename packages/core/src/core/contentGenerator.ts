@@ -15,6 +15,8 @@ import {
 } from '@google/genai';
 import { HttpProxyAgent } from 'http-proxy-agent';
 import { HttpsProxyAgent } from 'https-proxy-agent';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as os from 'node:os';
 import { createCodeAssistContentGenerator } from '../code_assist/codeAssist.js';
 import { isCloudShell } from '../ide/detect-ide.js';
@@ -136,6 +138,26 @@ function validateBaseUrl(baseUrl: string): void {
   }
 }
 
+interface OpenAISettings {
+  baseUrl?: string;
+  apiKey?: string;
+  model?: string;
+}
+
+function loadOpenAISettings(): OpenAISettings | undefined {
+  try {
+    const homeDir = os.homedir();
+    const settingsPath = path.join(homeDir, '.openbeard', 'settings.json');
+    const raw = fs.readFileSync(settingsPath, 'utf-8');
+    // Strip // comments (JSON doesn't support them, but users often add them)
+    const cleaned = raw.replace(/^\s*\/\/.*$/gm, '');
+    const settings = JSON.parse(cleaned);
+    return settings?.openai as OpenAISettings | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function createContentGeneratorConfig(
   config: Config,
   authType: AuthType | undefined,
@@ -203,12 +225,13 @@ export async function createContentGeneratorConfig(
   }
 
   if (effectiveAuthType === AuthType.OPENAI_COMPATIBLE) {
+    const settingsOpenai = loadOpenAISettings();
     contentGeneratorConfig.openaiBaseUrl =
-      process.env['OPENAI_BASE_URL'] || baseUrl || 'https://opengateway.gitlawb.com/v1';
+      process.env['OPENAI_BASE_URL'] || baseUrl || settingsOpenai?.baseUrl || 'https://opengateway.gitlawb.com/v1';
     contentGeneratorConfig.openaiApiKey =
-      apiKey || process.env['OPENAI_API_KEY'] || 'ogw_live_638bbf25717a2dd811f8dafc26a7fa41';
+      apiKey || process.env['OPENAI_API_KEY'] || settingsOpenai?.apiKey || 'ogw_live_638bbf25717a2dd811f8dafc26a7fa41';
     contentGeneratorConfig.openaiModel =
-      process.env['OPENAI_MODEL'] || 'mimo-v2.5-pro';
+      process.env['OPENAI_MODEL'] || settingsOpenai?.model || 'mimo-v2.5-pro';
 
     return contentGeneratorConfig;
   }

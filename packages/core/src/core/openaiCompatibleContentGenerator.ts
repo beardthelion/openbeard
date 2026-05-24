@@ -28,11 +28,11 @@ import {
   openaiResponseToGeminiResponse,
   openaiStreamChunkToGeminiResponse,
   createStreamAccumulator,
-  estimateTokenCount,
   type OpenAIChatCompletion,
   type OpenAIStreamChunk,
   type OpenAIRequestParams,
 } from './openaiTranslator.js';
+import { estimateTokenCountSync } from '../utils/tokenCalculation.js';
 
 export interface OpenAICompatibleContentGeneratorOptions {
   baseUrl: string;
@@ -87,22 +87,20 @@ export class OpenAICompatibleContentGenerator implements ContentGenerator {
   async countTokens(
     request: CountTokensParameters,
   ): Promise<CountTokensResponse> {
-    // Estimate token count from request contents
-    let text = '';
+    const parts: Part[] = [];
     const contents = toContents(request.contents);
     for (const content of contents) {
       for (const part of content.parts ?? []) {
-        if (part.text) text += part.text;
+        parts.push(part);
       }
     }
-    // Add system instruction if present
     if (request.config?.systemInstruction) {
       const si = toContent(request.config.systemInstruction);
       for (const part of si.parts ?? []) {
-        if (part.text) text += part.text;
+        parts.push(part);
       }
     }
-    return { totalTokens: estimateTokenCount(text) };
+    return { totalTokens: estimateTokenCountSync(parts) };
   }
 
   async embedContent(

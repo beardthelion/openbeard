@@ -56,4 +56,4 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm test --workspace=packages/core -- --reporter=verbose 2>&1 || true
+      - run: npm test --workspace=packages/core -- --reporter=verbose

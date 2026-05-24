@@ -608,12 +608,3 @@ export function openaiStreamChunkToGeminiResponse(
 
   return geminiResponse;
 }
-
-/**
- * Estimate token count from text (rough approximation).
- * Most OpenAI-compatible endpoints don't expose a tokenization API.
- */
-export function estimateTokenCount(text: string): number {
-  // Rough approximation: ~4 characters per token for English
-  return Math.ceil(text.length / 4);
-}

@@ -26,6 +26,7 @@ import { SessionBrowser } from './SessionBrowser.js';
 import { PermissionsModifyTrustDialog } from './PermissionsModifyTrustDialog.js';
 import { ModelDialog } from './ModelDialog.js';
 import { VoiceModelDialog } from './VoiceModelDialog.js';
+import { AuthState } from '../types.js';
 import { theme } from '../semantic-colors.js';
 import { useUIState } from '../contexts/UIStateContext.js';
 import { useQuotaState } from '../contexts/QuotaContext.js';
@@ -40,6 +41,7 @@ import { NewAgentsNotification } from './NewAgentsNotification.js';
 import { AgentConfigDialog } from './AgentConfigDialog.js';
 import { PolicyUpdateDialog } from './PolicyUpdateDialog.js';
 import { LoginRestartDialog } from '../auth/LoginRestartDialog.js';
+import { SetupWizard } from './SetupWizard.js';
 
 interface DialogManagerProps {
   addItem: UseHistoryManagerReturn['addItem'];
@@ -314,6 +316,17 @@ export const DialogManager = ({
           onDismiss={uiActions.dismissLoginRestart}
           config={config}
           message={uiState.loginRestartMessage}
+        />
+      </Box>
+    );
+  }
+  if (uiState.isSetupWizardOpen) {
+    return (
+      <Box flexDirection="column">
+        <SetupWizard
+          settings={settings}
+          onComplete={() => uiActions.setAuthState(AuthState.Authenticated)}
+          onCancel={() => uiActions.setAuthState(AuthState.Updating)}
         />
       </Box>
     );

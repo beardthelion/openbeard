@@ -2223,6 +2223,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     !!emptyWalletRequest ||
     isSessionBrowserOpen ||
     authState === AuthState.AwaitingApiKeyInput ||
+    authState === AuthState.SetupWizard ||
     isAwaitingLoginRestart ||
     !!newAgents;
 
@@ -2457,6 +2458,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       accountSuspensionInfo,
       isAuthDialogOpen,
       isAwaitingApiKeyInput: authState === AuthState.AwaitingApiKeyInput,
+      isSetupWizardOpen: authState === AuthState.SetupWizard,
       isAwaitingLoginRestart,
       loginRestartMessage,
       apiKeyDefaultValue,

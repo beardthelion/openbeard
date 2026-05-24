@@ -139,7 +139,18 @@ export const useAuthCommand = (
 
         debugLogger.log(`Authenticated via "${authType}".`);
         setAuthError(null);
-        setAuthState(AuthState.Authenticated);
+
+        // If using OpenAI-compatible but no endpoint is configured,
+        // show the setup wizard instead of going straight to chat.
+        if (
+          authType === AuthType.OPENAI_COMPATIBLE &&
+          !settings.merged.openai?.baseUrl &&
+          !process.env['OPENAI_BASE_URL']
+        ) {
+          setAuthState(AuthState.SetupWizard);
+        } else {
+          setAuthState(AuthState.Authenticated);
+        }
       } catch (e) {
         const suspendedError = isAccountSuspendedError(e);
         if (suspendedError) {

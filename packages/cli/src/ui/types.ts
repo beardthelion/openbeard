@@ -44,6 +44,8 @@ export enum AuthState {
   Authenticated = 'authenticated',
   // Waiting for the user to restart after a login
   AwaitingLoginRestart = 'awaiting_login_restart',
+  // First-run setup wizard for OpenAI-compatible endpoints
+  SetupWizard = 'setup_wizard',
 }
 
 // Only defining the state enum needed by the UI

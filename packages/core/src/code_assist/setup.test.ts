@@ -184,7 +184,7 @@ describe('setupUser', () => {
       });
       const httpOptions = {
         headers: {
-          'User-Agent': 'GeminiCLI/1.0.0/gemini-2.0-flash (darwin; arm64)',
+          'User-Agent': 'OpenBeard/1.0.0/gemini-2.0-flash (darwin; arm64)',
         },
       };
       await setupUser({} as OAuth2Client, mockConfig, httpOptions);

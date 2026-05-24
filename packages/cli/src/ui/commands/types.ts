@@ -130,7 +130,8 @@ export interface OpenDialogActionReturn {
     | 'model'
     | 'voice-model'
     | 'agentConfig'
-    | 'permissions';
+    | 'permissions'
+    | 'setupWizard';
 }
 
 /**

@@ -66,6 +66,7 @@ import { runExitCleanup } from '../../utils/cleanup.js';
 
 interface SlashCommandProcessorActions {
   openAuthDialog: () => void;
+  openSetupWizard: () => void;
   openThemeDialog: () => void;
   openEditorDialog: () => void;
   openPrivacyNotice: () => void;
@@ -487,6 +488,9 @@ export const useSlashCommandProcessor = (
                   switch (result.dialog) {
                     case 'auth':
                       actions.openAuthDialog();
+                      return { type: 'handled' };
+                    case 'setupWizard':
+                      actions.openSetupWizard();
                       return { type: 'handled' };
                     case 'theme':
                       actions.openThemeDialog();
